@@ -22,7 +22,7 @@ export const MainProvider = ({ children }) => {
         if (contract != null) {
             try {
                 const bal = parseInt((await contract.balanceOf(userAccount))) / 10 ** 12
-                setRdxBal(bal)
+                setRdxBal(Math.round(bal))
             } catch (error) {
                 console.log('get RDX balance cause crash by system')
             }
@@ -33,7 +33,7 @@ export const MainProvider = ({ children }) => {
         if (contract != null) {
             try {
                 const bal = parseInt((await contract.balanceOf(userAccount))) / 10 ** 12
-                setWjkBal(bal)
+                setWjkBal(Math.round(bal))
             } catch (error) {
                 console.log('get WJK balance cause crash by system')
             }
@@ -61,12 +61,12 @@ export const MainProvider = ({ children }) => {
             }
         } else alert('get UNI contract failed')
     }
-    const getRDXRWBal = async () => {
+    const getRDXRWBal = async () => { 
         const contract = await getContract('rdxrw')
         if (contract != null && userAccount) {
             try {
                 const balance = await contract.balanceOf(userAccount)
-                setRdxrwBal(parseInt(balance.toString()) / 10 ** 12)
+                setRdxrwBal(Math.round(parseInt(balance.toString()) / 10 ** 12))
             } catch (error) {
                 alert('get user RDX balance cause crash by system')
             }
@@ -161,6 +161,72 @@ export const MainProvider = ({ children }) => {
         } else alert('get Poolpair contract failed')
     }
 
+    const approveRDX = async () => {
+        const rdxContract = await getContract('rdx')
+        if (rdxContract != null) {
+            try {
+                const txApproveRdx = await rdxContract.approve(PoolPair.contractAddress, parseUnits(`1000000000000`, 12))
+                alert('wait 30 seconds')
+                await txApproveRdx.wait()
+                alert('approve success')
+            } catch (error) {
+                alert('approve RDX cause cash by system')
+            }
+        } else alert('get rdxContract contract failed')
+    }
+    const approveWJK = async () => {
+        const wjkContract = await getContract('wjk')
+        if (wjkContract != null) {
+            try {
+                const txApproveWjk = await wjkContract.approve(PoolPair.contractAddress, parseUnits(`1000000000000`, 12))
+                alert('wait 30 seconds')
+                await txApproveWjk.wait()
+                alert('approve success')
+            } catch (error) {
+                alert('approve RDX cause cash by system')
+            }
+        } else alert('get rdxContract contract failed')
+    }
+    const approveRDLP = async () => {
+        const pooContract = await getContract('poo')
+        if (pooContract != null) {
+            try {
+                const txApprovePoo = await pooContract.approve(PoolPair.contractAddress, parseUnits(`1000000000000`, 12))
+                alert('wait 30 seconds')
+                await txApprovePoo.wait()
+                alert('approve success')
+            } catch (error) {
+                alert('approve RDLP cause cash by system')
+            }
+        } else alert('get pooContract contract failed')
+    }
+    const approveRDLPForFarm = async () => {
+        const pooContract = await getContract('poo')
+        if (pooContract != null) {
+            try {
+                const txApprovePoo = await pooContract.approve(MasterChef.contractAddress, parseUnits(`1000000000000`, 12))
+                alert('wait 30 seconds')
+                await txApprovePoo.wait()
+                alert('approve success')
+            } catch (error) {
+                alert('approve RDLP cause cash by system')
+            }
+        } else alert('get pooContract contract failed')
+    }
+    const approveUNI = async () => {
+        const uniContract = await getContract('uni')
+        if (uniContract != null) {
+            try {
+                const txApprovePoo = await uniContract.approve(MasterChef.contractAddress, parseUnits(`1000000000000`, 12))
+                alert('wait 30 seconds')
+                await txApprovePoo.wait()
+                alert('approve success')
+            } catch (error) {
+                alert('approve UNI cause cash by system')
+            }
+        } else alert('get pooContract contract failed')
+    }
+
     const [formDataAddLQ, setFormDataAddLQ] = useState({ rdxExpect: 0, wjkExpect: 0, rdxMin: 0, wjkMin: 0 });
     const handleChangeAddLQ = (e, name) => {
         setFormDataAddLQ((prevState) => ({ ...prevState, [name]: e.target.value }));
@@ -184,6 +250,7 @@ export const MainProvider = ({ children }) => {
                     alert('add liquidity success')
                     await updateTokenBal()
                 } else {
+                    // debugger
                     let txApproveRdx, txApproveWjk, txAddLiquidity
                     if (rdxAllowance - rdxExpect < 0) {
                         txApproveRdx = await rdxContract.approve(PoolPair.contractAddress, parseUnits(`${rdxExpect}`, 12))
@@ -191,8 +258,8 @@ export const MainProvider = ({ children }) => {
                     if (wkjAllowance - wjkExpect < 0) {
                         txApproveWjk = await wjkContract.approve(PoolPair.contractAddress, parseUnits(`${wjkExpect}`, 12))
                     }
-                    await txApproveRdx.wait()
-                    await txApproveWjk.wait()
+                    txApproveRdx && await txApproveRdx.wait()
+                    txApproveWjk && await txApproveWjk.wait()
                     rdxAllowance = await getRDXAllowance()
                     wkjAllowance = await getWJKAllowance()
                     rdxAllowance = typeof (rdxAllowance) === 'number' ? rdxAllowance : 0
@@ -208,6 +275,7 @@ export const MainProvider = ({ children }) => {
                     }
                 }
             } catch (error) {
+                console.log(error)
                 alert('add liquidity cause crash by system')
             }
         } else alert('get PoolPair contract failed')
@@ -306,7 +374,6 @@ export const MainProvider = ({ children }) => {
 
     const poolNames = ['uni', 'rdlp']
 
-
     const [uniDepositBalance, setUniBalance] = useState(0)
     const [rdlpDepositBalance, setRdlpBalance] = useState(0)
     const getTokenDepositBalance = async () => {
@@ -335,10 +402,10 @@ export const MainProvider = ({ children }) => {
                 poolNames.forEach(async (name) => {
                     if (name === 'uni') {
                         const RDXPending = await contract.pendingRedDot(name, userAccount)
-                        setUniRdxPending(parseInt(RDXPending.toString()) / 10 ** 12)
+                        setUniRdxPending(Math.round(parseInt(RDXPending.toString()) / 10 ** 12))
                     } else if (name === 'rdlp') {
                         const RDXPending = await contract.pendingRedDot(name, userAccount)
-                        setRdlpRDdxPending(parseInt(RDXPending.toString()) / 10 ** 12)
+                        setRdlpRDdxPending(Math.round(parseInt(RDXPending.toString()) / 10 ** 12))
                     }
                 })
             } catch (error) {
@@ -449,6 +516,7 @@ export const MainProvider = ({ children }) => {
                 reserveRdx, reserveWjk,
                 formDataAddLQ, handleChangeAddLQ, formDataRemoveLQ, handleChangeRemoveLQ,
                 addLiquidity, removeLiquidity, swap,
+                approveRDX, approveWJK, approveRDLP, approveRDLPForFarm,approveUNI,
 
                 uniDepositBalance, rdlpDepositBalance, uniRdxPending, rdlpRdxPending,
                 setUniDepositAmount, setRdlpDepositAmount, depositToken,

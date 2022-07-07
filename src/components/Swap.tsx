@@ -5,28 +5,30 @@ interface inputPros {
     placeholder: string,
     name: string,
     type: string,
-    handleChange: Function
+    handleChange: Function,
+    value: any
 }
-const Input = ({ placeholder, name, type, handleChange }: inputPros) => (
+const Input = ({ placeholder, name, type, handleChange, value }: inputPros) => (
     <input
         placeholder={placeholder}
         type={type}
         style={{ marginRight: 10, width: 120 }}
         onChange={(e) => handleChange(e, name)}
+        value={value}
     />
 );
 const Swap = () => {
 
-
     const [leftEqualRDX, setLeftEqualRDX] = useState<boolean>(true)
     const [leftSwapValue, setLeftSwapValue] = useState<any>(0)
-    const { rdlpBal, formDataAddLQ, handleChangeAddLQ, addLiquidity, formDataRemoveLQ, handleChangeRemoveLQ, removeLiquidity, swap, reserveRdx, reserveWjk } = useContext(MainContext)
+    const { rdlpBal, formDataAddLQ, handleChangeAddLQ, addLiquidity, formDataRemoveLQ, handleChangeRemoveLQ,
+        removeLiquidity, swap, reserveRdx, reserveWjk, rdxBal, wjkBal, approveRDX, approveWJK, approveRDLP } = useContext(MainContext)
     const handleSwap = () => {
         swap(leftEqualRDX, leftSwapValue)
     }
     const handleAddLQ = () => {
-        const { rdxExpect, wjkExpect, rdxMin, wjkMin } = formDataAddLQ
-        addLiquidity(rdxExpect, wjkExpect, rdxMin, wjkMin)
+        const { rdxExpect, rdxMin, wjkMin } = formDataAddLQ
+        addLiquidity(rdxExpect, rightLiquidityValue, rdxMin, wjkMin)
     }
     const handleRemoveLQ = () => {
         const { lpToBurn, rdxMinBack, wjkMinBack } = formDataRemoveLQ
@@ -34,22 +36,28 @@ const Swap = () => {
     }
 
     const rightSwapValue = useMemo(() => {
-        if (reserveRdx <= 0 || reserveWjk <= 0 || leftSwapValue <= 0) {
+        if (reserveRdx <= 0 || reserveWjk <= 0 || parseFloat(leftSwapValue) <= 0) {
             return 0
         }
         let tokenOutAmount
         if (leftEqualRDX) {
-            tokenOutAmount = (reserveWjk * parseInt(leftSwapValue)) / (reserveRdx + parseInt(leftSwapValue))
+            tokenOutAmount = (reserveWjk * parseFloat(leftSwapValue)) / (reserveRdx + parseFloat(leftSwapValue))
         } else {
-            tokenOutAmount = (reserveRdx * parseInt(leftSwapValue)) / (reserveWjk + parseInt(leftSwapValue))
+            tokenOutAmount = (reserveRdx * parseFloat(leftSwapValue)) / (reserveWjk + parseFloat(leftSwapValue))
         }
         return tokenOutAmount
     }, [leftEqualRDX, leftSwapValue, reserveRdx, reserveWjk])
 
+    const rightLiquidityValue = useMemo(() => {
+        if (reserveRdx <= 0 || reserveWjk <= 0 || parseFloat(formDataAddLQ.rdxExpect) <= 0) return 0
+        let rightAmountOut = parseFloat(formDataAddLQ.rdxExpect) * parseFloat(reserveWjk) / parseFloat(reserveRdx)
+        rightAmountOut = Math.round(rightAmountOut * 100) / 100
+        return rightAmountOut
+    }, [formDataAddLQ.rdxExpect, reserveRdx, reserveWjk])
 
     return (
         <div style={{ paddingBottom: 40, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-            <div style={{display: 'flex', flexDirection: 'column'}} >
+            <div style={{ display: 'flex', flexDirection: 'column' }} >
                 <div style={{ display: 'flex', flexDirection: 'column' }} >
                     <h1 style={{ color: 'blue' }} >Swap</h1>
                     <div style={{ display: 'flex', flexDirection: 'row' }}>
@@ -64,13 +72,13 @@ const Swap = () => {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'row' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', marginRight: 20 }}>
-                            <p>{leftEqualRDX ? 'RDX' : 'WJK'}</p>
+                            <p>{leftEqualRDX ? 'RDX' : 'WJK'}: {rdxBal}</p>
                             <input style={{ marginRight: 10, width: 120 }} type='number' onChange={(e) => {
                                 setLeftSwapValue(e.target.value)
                             }} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <p>{leftEqualRDX ? 'WJK' : 'RDX'}</p>
+                            <p>{leftEqualRDX ? 'WJK' : 'RDX'}: {wjkBal}</p>
                             <input style={{ marginRight: 10, width: 120 }} type='number' disabled={true} value={rightSwapValue} />
                         </div>
                     </div>
@@ -85,27 +93,53 @@ const Swap = () => {
                             <p>Swap</p>
                         </button>
                     </div>
-
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }} >
                     <h1 style={{ color: 'blue', marginRight: 25 }} >Add Liquidity</h1>
-                    <div style={{ display: 'flex', flexDirection: 'row' }}>
-                        <Input placeholder="RDX Expect" name="rdxExpect" type="number" handleChange={handleChangeAddLQ} />
-                        <Input placeholder="WJK Expect" name="wjkExpect" type="number" handleChange={handleChangeAddLQ} />
+                    <div style={{ display: 'flex', flexDirection: 'row', marginBottom: 20 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginRight: 50 }}>
+                            <p>Approve RDX</p>
+                            <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 30, width: 60 }} type="button" onClick={approveRDX}>
+                                <p>Approve</p>
+                            </button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <p>Approve WJK</p>
+                            <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 30, width: 60 }} type="button" onClick={approveWJK}>
+                                <p>Approve</p>
+                            </button>
+                        </div>
                     </div>
+                    <div style={{ display: 'flex', flexDirection: 'row' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <p>RDX : {rdxBal}</p>
+                            <Input placeholder="RDX Expect" name="rdxExpect" type="number"
+                                handleChange={handleChangeAddLQ} value={undefined} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <p>WJK : {wjkBal}</p>
+                            <Input placeholder="WJK Expect" name="wjkExpect" type="number"
+                                handleChange={handleChangeAddLQ} value={rightLiquidityValue} />
+                        </div>
 
-
+                    </div>
                     <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 30, width: 60, marginTop: 20 }} type="button" onClick={handleAddLQ}>
                         <p>Add</p>
                     </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }} >
                     <h1 style={{ color: 'blue', marginRight: 25 }} >Recall Liquidity</h1>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <p>Approve RDLP</p>
+                        <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 30, width: 60 }} type="button" onClick={approveRDLP}>
+                            <p>Approve</p>
+                        </button>
+                    </div>
                     <p>Your RDLP Token: {rdlpBal}</p>
                     <div style={{ display: 'flex', flexDirection: 'row' }}>
-                        <Input placeholder="LP amount" name="lpToBurn" type="number" handleChange={handleChangeRemoveLQ} />
-                        <Input placeholder="RDX Min Back" name="rdxMinBack" type="number" handleChange={handleChangeRemoveLQ} />
-                        <Input placeholder="WJK Min Back" name="wjkMinBack" type="number" handleChange={handleChangeRemoveLQ} />
+                        <Input placeholder="LP amount" name="lpToBurn" type="number" handleChange={handleChangeRemoveLQ} value={undefined} />
+                        <Input placeholder="RDX Min Back" name="rdxMinBack" type="number" handleChange={handleChangeRemoveLQ} value={undefined} />
+                        <Input placeholder="WJK Min Back" name="wjkMinBack" type="number" handleChange={handleChangeRemoveLQ} value={undefined} />
                     </div>
                     <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 30, width: 60, marginTop: 20 }} type="button" onClick={handleRemoveLQ}>
                         <p>Recall</p>

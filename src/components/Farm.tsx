@@ -10,16 +10,24 @@ interface FarmItemProps {
     setClaimRewardAmount: Function,
     claimReward: Function,
     RdxPending: number,
-    tokenName: string
+    tokenName: string,
+    tokenBal: number,
+    approveToken: Function
 }
 
 const FarmItem = ({ setTokenDepositAmount, depositToken, setTokenWithdrawAmount, withdrawToken,
-    tokenInPoolBalance, setClaimRewardAmount, claimReward, RdxPending, tokenName }: FarmItemProps) => {
+    tokenInPoolBalance, setClaimRewardAmount, claimReward, RdxPending, tokenName, tokenBal, approveToken }: FarmItemProps) => {
     return (
         <div style={{ display: 'flex', alignItems: 'center', flexDirection: 'column' }} >
             <h1 style={{ justifyContent: 'center', color: 'blue' }} >Pool: {tokenName.toUpperCase()}</h1>
-            <div style={{display: 'flex', flexDirection: 'column', marginBottom: 40}}>
-                <p > Deposit {tokenName}:</p>
+            <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 40 }}>
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                    <p style={{ marginRight: 20 }} >Approve {tokenName.toUpperCase()}</p>
+                    <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => approveToken()}>
+                        <p>Approve</p>
+                    </button>
+                </div>
+                <p > Deposit {tokenName} | Current Balance: {`${tokenBal} ${tokenName.toLocaleUpperCase()}`} </p>
                 <div style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', width: '40%', display: 'flex' }}>
                     <input style={{ marginRight: 10 }} type='number' onChange={(e) => { setTokenDepositAmount(e.target.value) }} />
                     <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => depositToken(tokenName)} >
@@ -52,18 +60,21 @@ const Farm = () => {
     const { uniDepositBalance, rdlpDepositBalance, uniRdxPending, rdlpRdxPending,
         setUniDepositAmount, setRdlpDepositAmount, depositToken,
         setUniWithdrawAmount, setRdlpWithdrawAmount, withdrawToken,
-        setClaimeRewardFromUniAmount, setClaimeRewardFromRdplAmount, claimReward } = useContext(MainContext)
+        setClaimeRewardFromUniAmount, setClaimeRewardFromRdplAmount, claimReward,
+        uniBal, rdlpBal, approveRDLPForFarm, approveUNI, } = useContext(MainContext)
     return (
         <div>
             <FarmItem setTokenDepositAmount={setUniDepositAmount} depositToken={depositToken}
                 setTokenWithdrawAmount={setUniWithdrawAmount} withdrawToken={withdrawToken}
                 tokenInPoolBalance={uniDepositBalance} setClaimRewardAmount={setClaimeRewardFromUniAmount}
-                claimReward={claimReward} RdxPending={uniRdxPending} tokenName={'uni'} />
+                claimReward={claimReward} RdxPending={uniRdxPending} tokenName={'uni'}
+                tokenBal={uniBal} approveToken={approveUNI} />
 
             <FarmItem setTokenDepositAmount={setRdlpDepositAmount} depositToken={depositToken}
                 setTokenWithdrawAmount={setRdlpWithdrawAmount} withdrawToken={withdrawToken}
                 tokenInPoolBalance={rdlpDepositBalance} setClaimRewardAmount={setClaimeRewardFromRdplAmount}
-                claimReward={claimReward} RdxPending={rdlpRdxPending} tokenName={'rdlp'} />
+                claimReward={claimReward} RdxPending={rdlpRdxPending} tokenName={'rdlp'}
+                tokenBal={rdlpBal} approveToken={approveRDLPForFarm} />
         </div>
     )
 }
