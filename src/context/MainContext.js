@@ -92,8 +92,9 @@ export const MainProvider = ({ children }) => {
         const pairContract = await getPairContract(pairName)
         if (pairContract != null) {
             try {
-                const reserve0 = parseInt((await pairContract.getReserves())[0])/10**12
-                const reserve1 =  parseInt((await pairContract.getReerves())[1])/10**12
+                const reserve0 = parseInt((await pairContract.getReserves())[0]) / 10 ** 12
+                const reserve1 = parseInt((await pairContract.getReerves())[1]) / 10 ** 12
+                // const [token1, token2] = tokenA < tokenB ? [tokenA, tokenB] : [tokenB, tokenA];
                 if (page === 'swap') {
 
                 } else if (page === 'add') {
