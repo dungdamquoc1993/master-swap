@@ -57,11 +57,11 @@ const FarmItem = ({ setTokenDepositAmount, depositToken, setTokenWithdrawAmount,
 }
 
 const Farm = () => {
-    const { uniDepositBalance, rdlpDepositBalance, uniRdxPending, rdlpRdxPending,
-        setUniDepositAmount, setRdlpDepositAmount, depositToken,
-        setUniWithdrawAmount, setRdlpWithdrawAmount, withdrawToken,
-        setClaimeRewardFromUniAmount, setClaimeRewardFromRdplAmount, claimReward,
-        uniBal, rdlpBal, approveRDLPForFarm, approveUNI, } = useContext(MainContext)
+    const { uniDepositBalance, uniRdxPending,
+        setUniDepositAmount, depositToken,
+        setUniWithdrawAmount, withdrawToken,
+        setClaimeRewardFromUniAmount, claimReward,
+        uniBal, approveUNI, } = useContext(MainContext)
     return (
         <div>
             <FarmItem setTokenDepositAmount={setUniDepositAmount} depositToken={depositToken}
@@ -69,12 +69,6 @@ const Farm = () => {
                 tokenInPoolBalance={uniDepositBalance} setClaimRewardAmount={setClaimeRewardFromUniAmount}
                 claimReward={claimReward} RdxPending={uniRdxPending} tokenName={'uni'}
                 tokenBal={uniBal} approveToken={approveUNI} />
-
-            <FarmItem setTokenDepositAmount={setRdlpDepositAmount} depositToken={depositToken}
-                setTokenWithdrawAmount={setRdlpWithdrawAmount} withdrawToken={withdrawToken}
-                tokenInPoolBalance={rdlpDepositBalance} setClaimRewardAmount={setClaimeRewardFromRdplAmount}
-                claimReward={claimReward} RdxPending={rdlpRdxPending} tokenName={'rdlp'}
-                tokenBal={rdlpBal} approveToken={approveRDLPForFarm} />
         </div>
     )
 }

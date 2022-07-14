@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useWeb3React } from '@web3-react/core';
-import { getContract } from "../utils/getContract";
-import { MasterChef, WJKToken, RDXToken, PoolPair } from '../utils/constant'
+import { getContract, getPairContract } from "../utils/getContract";
+import { MasterChef, WJKToken, RDXToken, PoolPair, UniRouter, CoinB, CoinA, CoinC, CoinD, UNIToken } from '../utils/constant'
 import { parseUnits } from "ethers/lib/utils";
 
 export const MainContext = React.createContext()
@@ -9,269 +9,147 @@ export const MainContext = React.createContext()
 export const MainProvider = ({ children }) => {
     const { account } = useWeb3React();
     const [userAccount, setUserAccount] = useState('')
-    const [rdxBal, setRdxBal] = useState(0)
-    const [uniBal, setUniBal] = useState(0)
-    const [wjkBal, setWjkBal] = useState(0)
-    const [rdxrwBal, setRdxrwBal] = useState(0)
-    const [rdlpBal, setRdlpBal] = useState(0)
-    const [reserveRdx, setReserveRdx] = useState(0)
-    const [reserveWjk, setReserveWjk] = useState(0)
+    const [coinBals, setCoinBals] = useState({
+        rdxrwBal: 0, uniBal: 0, coinABal: 0, coinBBal: 0,
+        coinCBal: 0, coinDBal: 0, lpabBal: 0, lpbcBal: 0, lpcdBal: 0,
+    });
 
-    const getRDXBal = async () => {
-        const contract = await getContract('rdx')
-        if (contract != null) {
+    const mintCoin = async (coinName) => {
+        const coinContract = await getContract(coinName)
+        if (coinContract != null) {
             try {
-                const bal = parseInt((await contract.balanceOf(userAccount))) / 10 ** 12
-                setRdxBal(Math.round(bal))
+                const txMint = await coinContract.mint(userAccount, parseUnits('1000', 12))
+                alert('mint success wait for 30 second to get token')
+                await txMint.wait()
+                await getCoinBal(coinName)
             } catch (error) {
-                console.log('get RDX balance cause crash by system')
+                alert('mint coin cause crash by system')
             }
-        } else alert('get RDX contract failed')
+        } else alert('get coin contract failed')
     }
-    const getWJKBal = async () => {
-        const contract = await getContract('wjk')
-        if (contract != null) {
+    const getCoinBal = async (coinName) => {
+        let coinContract
+        if (['ab', 'bc', 'cd'].includes(coinName)) {
+            coinContract = await getPairContract(coinName)
+        } else {
+            coinContract = await getContract(coinName)
+        }
+        if (coinContract != null && userAccount) {
             try {
-                const bal = parseInt((await contract.balanceOf(userAccount))) / 10 ** 12
-                setWjkBal(Math.round(bal))
+                const balance = await coinContract.balanceOf(userAccount)
+                const balUpddate = coinName === 'rdxrw' ? 'rdxrwBal' : coinName === 'a' ? 'coinABal' : coinName === 'b' ? 'coinBBal' :
+                    coinName === 'c' ? 'coinCBal' : coinName === 'd' ? 'coinDBal' : coinName === 'uni' ? 'uniBal' :
+                        coinName === 'ab' ? 'lpabBal' : coinName === 'bc' ? 'lpbcBal' : coinName === ' cd' ? 'lpcdBal' : ''
+                setCoinBals((prevState) => ({ ...prevState, [balUpddate]: Math.round(parseInt(balance.toString()) / 10 ** 12) }));
             } catch (error) {
-                console.log('get WJK balance cause crash by system')
+                alert('get user Coin balance cause crash by system')
             }
-        } else alert('get WJK contract failed')
-    }
-    const getRDLPBal = async () => {
-        const contract = await getContract('poo')
-        if (contract != null) {
-            try {
-                const bal = parseInt((await contract.balanceOf(userAccount))) / 10 ** 12
-                setRdlpBal(bal)
-            } catch (error) {
-                console.log('get RDLP Balance cause crash by system')
-            }
-        } else alert('get PoolPair contract failed')
-    }
-    const getUNIBal = async () => {
-        const contract = await getContract('uni')
-        if (contract != null) {
-            try {
-                const balance = await contract.balanceOf(userAccount)
-                setUniBal(parseInt(balance.toString()) / 10 ** 12)
-            } catch (error) {
-                alert('get user UNI balance cause crash by system')
-            }
-        } else alert('get UNI contract failed')
-    }
-    const getRDXRWBal = async () => { 
-        const contract = await getContract('rdxrw')
-        if (contract != null && userAccount) {
-            try {
-                const balance = await contract.balanceOf(userAccount)
-                setRdxrwBal(Math.round(parseInt(balance.toString()) / 10 ** 12))
-            } catch (error) {
-                alert('get user RDX balance cause crash by system')
-            }
-        } else alert('get RDX contract failed')
+        } else alert('get RDX coinContract failed')
     }
     const updateTokenBal = async () => {
-        await getRDXBal()
-        await getWJKBal()
-        await getRDLPBal()
-        await getUNIBal()
-        await getRDXRWBal()
-        await getReserves()
         await getTokenDepositBalance()
         await getRDXPending()
+        await getCoinBal('rdxrw')
+        await getCoinBal('uni')
+        await getCoinBal('a')
+        await getCoinBal('b')
+        await getCoinBal('c')
+        await getCoinBal('d')
     }
 
-    const mintRDX = async () => {
-        const contract = await getContract('rdx')
-        if (contract != null) {
+    const getCoinAllowance = async (coinName, spender) => {
+        const coinContract = await getContract(coinName)
+        if (coinContract != null) {
             try {
-                const mint = await contract.mint()
-                alert('mint RDX successs wait for 30 second to see balance update')
-                await mint.wait()
-                await getRDXBal()
+                return parseInt(await coinContract.allowance(userAccount, spender)) / 10 ** 12
             } catch (error) {
-                alert('mint RDX cause crash by system')
+                alert('approve coin cause crash by system')
             }
-        } else alert('get RDX contract failed')
+        } else alert('get coin contract failed')
     }
-    const mintWJK = async () => {
-        const contract = await getContract('wjk')
-        if (contract != null) {
+    const approveCoin = async (coinName, spender) => {
+        const coinContract = await getContract(coinName)
+        if (coinContract != null) {
             try {
-                const mint = await contract.mint()
-                alert('mint WJK success wait for 30 second to see balance update')
-                await mint.wait()
-                await getWJKBal()
+                const txApprove = await coinContract.approve(spender, parseUnits('1000000000', 12))
+                alert('approve success wait for 30 second to get token')
+                await txApprove.wait()
+                return true
             } catch (error) {
-                alert('mint WJK cause crash by system')
-            }
-        } else alert('get WJK contract failed')
-    }
-    const mintUni = async () => {
-        const uniContract = await getContract('uni')
-        if (uniContract != null) {
-            try {
-                const mint = await uniContract.mint(userAccount, parseUnits('1000', 12))
-                alert('mint success wait for 30 second to get uni token')
-                await mint.wait()
-                await getUNIBal()
-            } catch (error) {
-                alert('mint Uni casue crash by system')
+                alert('approve coin cause crash by system')
+                return false
             }
         } else {
-            alert('get uni contract failed')
+            alert('get coin contract failed')
+            return false
+        }
+    }
+    const reserveSwap = useState({ tokenA: 0, tokenB: 0 })
+    const reserveAdd = useState({ tokenA: 0, tokenB: 0 })
+    const reserveRemove = useState({ tokenA: 0, tokenB: 0 })
+
+    const getReserveInPair = async (page, pairName) => {
+        const pairContract = await getPairContract(pairName)
+        if (pairContract != null) {
+            try {
+                const reserve0 = parseInt((await pairContract.getReserves())[0])/10**12
+                const reserve1 =  parseInt((await pairContract.getReerves())[1])/10**12
+                if (page === 'swap') {
+
+                } else if (page === 'add') {
+
+                } else if (page === 'remove') {
+
+                }
+            } catch (error) {
+
+            }
+        } else {
+            alert('get pair contract cause crash pair might be not initialize yet')
         }
     }
 
-    const getRDXAllowance = async () => {
-        const contract = await getContract('rdx')
-        if (contract != null) {
-            try {
-                const bal = parseInt(await contract.allowance(userAccount, PoolPair.contractAddress)) / 10 ** 12
-                return bal
-            } catch (error) {
-                alert('get RDX allowance cause crash by systems')
-            }
-        } alert('get RDX contract faied')
-    }
-    const getWJKAllowance = async () => {
-        const contract = await getContract('wjk')
-        if (contract != null) {
-            try {
-                const bal = parseInt(await contract.allowance(userAccount, PoolPair.contractAddress)) / 10 ** 12
-                return bal
-            } catch (error) {
-                alert('get RDX allowance cause crash by systems')
-            }
-        } alert('get RDX contract faied')
-    }
-    const getReserves = async () => {
-        const contract = await getContract('poo')
-        if (contract != null) {
-            try {
-                const rdxReserve = parseInt((await contract.getReserves())[0]) / 10 ** 12
-                const wjkReserve = parseInt((await contract.getReserves())[1]) / 10 ** 12
-                setReserveRdx(rdxReserve)
-                setReserveWjk(wjkReserve)
-            } catch (error) {
-                console.log('get reserves cause cash by system')
-            }
-        } else alert('get Poolpair contract failed')
-    }
+    const [addLiquidityTokenA, setAddLiquidityTokenA] = useState('')
+    const [addLiquidityTokenB, setAddLiquidityTokenB] = useState('')
+    const [addLiquidityShowModal, setAddLiquidityShowModal] = useState('')
+    const [showApproveModal, setShowApproveModal] = useState(false)
+    const [coinAApprove, setCoinAAprove] = useState('')
+    const [coinBApprove, setCoinBApprove] = useState('')
+    const addLiquidity = async (coinAName, coinBName, amountADesired, amountBDesired) => {
+        const deadline = new Date().getTime() + 60 * 60 * 24 * 1000
+        const routerContract = await getContract('urou')
+        const facContract = await getContract('ufac')
+        const coinAContract = await getContract(coinAName)
+        const coinBContract = await getContract(coinBName)
+        const tokenAAddress = coinAName === 'a' ? CoinA.contractAddress : coinAName === 'b' ? CoinB.contractAddress :
+            coinAName === 'c' ? CoinC.contractAddress : coinAName === 'd' ? CoinD.contractAddress : coinAName === 'uni' ?
+                UNIToken.contractAddress : null
+        const tokenBAddress = coinBName === 'a' ? CoinA.contractAddress : coinBName === 'b' ? CoinB.contractAddress :
+            coinBName === 'c' ? CoinC.contractAddress : coinBName === 'd' ? CoinD.contractAddress : coinBName === 'uni' ?
+                UNIToken.contractAddress : null
 
-    const approveRDX = async () => {
-        const rdxContract = await getContract('rdx')
-        if (rdxContract != null) {
+        if (routerContract != null && facContract != null &&
+            coinAContract != null && coinBContract != null && tokenAAddress != null && tokenBAddress != null) {
             try {
-                const txApproveRdx = await rdxContract.approve(PoolPair.contractAddress, parseUnits(`1000000000000`, 12))
-                alert('wait 30 seconds')
-                await txApproveRdx.wait()
-                alert('approve success')
-            } catch (error) {
-                alert('approve RDX cause cash by system')
-            }
-        } else alert('get rdxContract contract failed')
-    }
-    const approveWJK = async () => {
-        const wjkContract = await getContract('wjk')
-        if (wjkContract != null) {
-            try {
-                const txApproveWjk = await wjkContract.approve(PoolPair.contractAddress, parseUnits(`1000000000000`, 12))
-                alert('wait 30 seconds')
-                await txApproveWjk.wait()
-                alert('approve success')
-            } catch (error) {
-                alert('approve RDX cause cash by system')
-            }
-        } else alert('get rdxContract contract failed')
-    }
-    const approveRDLP = async () => {
-        const pooContract = await getContract('poo')
-        if (pooContract != null) {
-            try {
-                const txApprovePoo = await pooContract.approve(PoolPair.contractAddress, parseUnits(`1000000000000`, 12))
-                alert('wait 30 seconds')
-                await txApprovePoo.wait()
-                alert('approve success')
-            } catch (error) {
-                alert('approve RDLP cause cash by system')
-            }
-        } else alert('get pooContract contract failed')
-    }
-    const approveRDLPForFarm = async () => {
-        const pooContract = await getContract('poo')
-        if (pooContract != null) {
-            try {
-                const txApprovePoo = await pooContract.approve(MasterChef.contractAddress, parseUnits(`1000000000000`, 12))
-                alert('wait 30 seconds')
-                await txApprovePoo.wait()
-                alert('approve success')
-            } catch (error) {
-                alert('approve RDLP cause cash by system')
-            }
-        } else alert('get pooContract contract failed')
-    }
-    const approveUNI = async () => {
-        const uniContract = await getContract('uni')
-        if (uniContract != null) {
-            try {
-                const txApprovePoo = await uniContract.approve(MasterChef.contractAddress, parseUnits(`1000000000000`, 12))
-                alert('wait 30 seconds')
-                await txApprovePoo.wait()
-                alert('approve success')
-            } catch (error) {
-                alert('approve UNI cause cash by system')
-            }
-        } else alert('get pooContract contract failed')
-    }
-
-    const [formDataAddLQ, setFormDataAddLQ] = useState({ rdxExpect: 0, wjkExpect: 0, rdxMin: 0, wjkMin: 0 });
-    const handleChangeAddLQ = (e, name) => {
-        setFormDataAddLQ((prevState) => ({ ...prevState, [name]: e.target.value }));
-    };
-    const addLiquidity = async (rdxExpect, wjkExpect, rdxMin, wjkMin) => {
-        const pooContract = await getContract('poo')
-        const rdxContract = await getContract('rdx')
-        const wjkContract = await getContract('wjk')
-        if (pooContract != null && rdxContract != null && wjkContract != null) {
-            try {
-                let rdxAllowance = await getRDXAllowance()
-                let wkjAllowance = await getWJKAllowance()
-                rdxAllowance = typeof (rdxAllowance) === 'number' ? rdxAllowance : 0
-                wkjAllowance = typeof (wkjAllowance) === 'number' ? wkjAllowance : 0
-                if (rdxAllowance - rdxExpect >= 0 && wkjAllowance - wjkExpect >= 0) {
-                    const tx = await pooContract.addLiquidity(
-                        parseUnits(`${rdxExpect}`, 12), parseUnits(`${wjkExpect}`, 12),
-                        parseUnits(`${rdxMin}`, 12), parseUnits(`${wjkMin}`, 12),
-                        userAccount)
+                let coinAAllowance = await getCoinAllowance(coinAName, UniRouter.contractAddress)
+                let coinBAllowance = await getCoinAllowance(coinBName, UniRouter.contractAddress)
+                coinAAllowance = typeof (coinAAllowance) === 'number' ? coinAAllowance : 0
+                coinBAllowance = typeof (coinBAllowance) === 'number' ? coinBAllowance : 0
+                if (coinAAllowance - amountADesired >= 0 && coinBAllowance - amountBDesired >= 0) {
+                    const tx = await routerContract.addLiquidity(
+                        tokenAAddress, tokenBAddress,
+                        parseUnits(`${amountADesired}`, 12), parseUnits(`${amountBDesired}`, 12),
+                        0, 0, userAccount, deadline)
                     await tx.wait()
                     alert('add liquidity success')
                     await updateTokenBal()
                 } else {
-                    // debugger
-                    let txApproveRdx, txApproveWjk, txAddLiquidity
-                    if (rdxAllowance - rdxExpect < 0) {
-                        txApproveRdx = await rdxContract.approve(PoolPair.contractAddress, parseUnits(`${rdxExpect}`, 12))
+                    setShowApproveModal(true)
+                    if (coinAAllowance - amountADesired < 0) {
+                        setCoinAAprove(coinAName)
                     }
-                    if (wkjAllowance - wjkExpect < 0) {
-                        txApproveWjk = await wjkContract.approve(PoolPair.contractAddress, parseUnits(`${wjkExpect}`, 12))
-                    }
-                    txApproveRdx && await txApproveRdx.wait()
-                    txApproveWjk && await txApproveWjk.wait()
-                    rdxAllowance = await getRDXAllowance()
-                    wkjAllowance = await getWJKAllowance()
-                    rdxAllowance = typeof (rdxAllowance) === 'number' ? rdxAllowance : 0
-                    wkjAllowance = typeof (wkjAllowance) === 'number' ? wkjAllowance : 0
-                    if (rdxAllowance - rdxExpect >= 0 && wkjAllowance - wjkExpect >= 0) {
-                        txAddLiquidity = await pooContract.addLiquidity(
-                            parseUnits(`${rdxExpect}`, 12), parseUnits(`${wjkExpect}`, 12),
-                            parseUnits(`${rdxMin}`, 12), parseUnits(`${wjkMin}`, 12),
-                            userAccount)
-                        alert('add liquidity success wait 30 seconds to see change')
-                        await txAddLiquidity.wait()
-                        await updateTokenBal()
+                    if (coinBAllowance - amountBDesired < 0) {
+                        setCoinBApprove(coinBName)
                     }
                 }
             } catch (error) {
@@ -280,98 +158,101 @@ export const MainProvider = ({ children }) => {
             }
         } else alert('get PoolPair contract failed')
     }
-    const [formDataRemoveLQ, setFormDataRemoveLQ] = useState({ lpToBurn: 0, rdxMinBack: 0, wjkMinBack: 0 });
-    const handleChangeRemoveLQ = (e, name) => {
-        setFormDataRemoveLQ((prevState) => ({ ...prevState, [name]: e.target.value }));
-    };
-    const removeLiquidity = async (lpToBurn, rdxMinBack, wjkMinBack) => {
-        const contract = await getContract('poo')
-        if (contract != null) {
-            try {
-                let txApprovePoolPair, txRemoveLiquidity, rdlpAllowance
-                rdlpAllowance = (await contract.allowance(userAccount, PoolPair.contractAddress)) / 10 ** 12
-                if (rdlpAllowance - lpToBurn >= 0) {
-                    txRemoveLiquidity = await contract.removeLiquidity(parseUnits(`${lpToBurn}`, 12),
-                        parseUnits(`${rdxMinBack}`, 12), parseUnits(`${wjkMinBack}`, 12),
-                        userAccount)
-                    alert('remove liquidity success')
-                    await txRemoveLiquidity.wait()
-                    await updateTokenBal()
-                } else {
-                    if (rdlpAllowance - lpToBurn < 0) {
-                        txApprovePoolPair = await contract.approve(PoolPair.contractAddress, parseUnits(`${lpToBurn}`, 12))
-                        await txApprovePoolPair.wait()
-                    }
-                    rdlpAllowance = (await contract.allowance(userAccount, PoolPair.contractAddress)) / 10 ** 12
-                    if (rdlpAllowance - lpToBurn >= 0) {
-                        txRemoveLiquidity = await contract.removeLiquidity(parseUnits(`${lpToBurn}`, 12),
-                            parseUnits(`${rdxMinBack}`, 12), parseUnits(`${wjkMinBack}`, 12),
-                            userAccount)
-                        alert('remove liquidity success wait 30 seconds to see change')
-                        await txRemoveLiquidity.wait()
-                        await updateTokenBal()
-                    }
-                }
-            } catch (error) {
-                alert('remove liquidity cause crash by system')
-            }
-        } else alert('get PoolPair contract failed')
-    }
 
-    const swap = async (leftEqualRDX, leftSwapValue) => {
-        const rdxContract = await getContract('rdx')
-        const wjkContract = await getContract('wjk')
-        const pooContract = await getContract('poo')
-        if (pooContract != null && rdxContract != null && wjkContract != null) {
-            try {
-                if (leftEqualRDX) {
-                    let rdxAllowance = await getRDXAllowance()
-                    if (leftSwapValue <= 0) return alert('please submit an valid amount to swap')
-                    if (rdxAllowance && rdxAllowance - leftSwapValue >= 0) {
-                        const swapTX = await pooContract.swap(RDXToken.contractAddress,
-                            parseUnits(`${leftSwapValue}`, 12),
-                            parseUnits('0', 12))
-                        await swapTX.wait()
-                        alert('swap success')
-                        await updateTokenBal()
-                    } else {
-                        let tx = await rdxContract.approve(PoolPair.contractAddress, parseUnits(`${leftSwapValue}`, 12))
-                        await tx.wait()
-                        const swapTX = await pooContract.swap(RDXToken.contractAddress,
-                            parseUnits(`${leftSwapValue}`, 12),
-                            parseUnits('0', 12))
-                        await swapTX.wait()
-                        alert('swap success')
-                        await updateTokenBal()
-                    }
-                } else {
-                    let wjkAllowance = await getWJKAllowance()
-                    if (leftSwapValue <= 0) return alert('please submit an valid amount to swap')
-                    if (wjkAllowance && wjkAllowance - leftSwapValue >= 0) {
-                        const swapTX = await pooContract.swap(WJKToken.contractAddress,
-                            parseUnits(`${leftSwapValue}`, 12),
-                            parseUnits('0', 12))
-                        alert('swap success')
-                        await swapTX.wait()
-                        await updateTokenBal()
-                    } else {
-                        let tx = await wjkContract.approve(PoolPair.contractAddress, parseUnits(`${leftSwapValue}`, 12))
-                        await tx.wait()
-                        const swapTX = await pooContract.swap(WJKToken.contractAddress,
-                            parseUnits(`${leftSwapValue}`, 12),
-                            parseUnits('0', 12))
-                        await swapTX.wait()
-                        alert('swap success')
-                        await updateTokenBal()
-                    }
-                }
-            } catch (error) {
-                alert('swap cause crash by system')
-            }
-        } else alert('get poolpair contract failed')
+    const [swapTokenA, setSwapTokenA] = useState('')
+    const [swapTokenB, setSwapTokenB] = useState('')
+    const [swapShowModal, setSwapModal] = useState('')
 
-    }
 
+    // const removeLiquidity = async (lpToBurn, rdxMinBack, wjkMinBack) => {
+    //     const contract = await getContract('poo')
+    //     if (contract != null) {
+    //         try {
+    //             let txApprovePoolPair, txRemoveLiquidity, rdlpAllowance
+    //             rdlpAllowance = (await contract.allowance(userAccount, PoolPair.contractAddress)) / 10 ** 12
+    //             if (rdlpAllowance - lpToBurn >= 0) {
+    //                 txRemoveLiquidity = await contract.removeLiquidity(parseUnits(`${lpToBurn}`, 12),
+    //                     parseUnits(`${rdxMinBack}`, 12), parseUnits(`${wjkMinBack}`, 12),
+    //                     userAccount)
+    //                 alert('remove liquidity success')
+    //                 await txRemoveLiquidity.wait()
+    //                 await updateTokenBal()
+    //             } else {
+    //                 if (rdlpAllowance - lpToBurn < 0) {
+    //                     txApprovePoolPair = await contract.approve(PoolPair.contractAddress, parseUnits(`${lpToBurn}`, 12))
+    //                     await txApprovePoolPair.wait()
+    //                 }
+    //                 rdlpAllowance = (await contract.allowance(userAccount, PoolPair.contractAddress)) / 10 ** 12
+    //                 if (rdlpAllowance - lpToBurn >= 0) {
+    //                     txRemoveLiquidity = await contract.removeLiquidity(parseUnits(`${lpToBurn}`, 12),
+    //                         parseUnits(`${rdxMinBack}`, 12), parseUnits(`${wjkMinBack}`, 12),
+    //                         userAccount)
+    //                     alert('remove liquidity success wait 30 seconds to see change')
+    //                     await txRemoveLiquidity.wait()
+    //                     await updateTokenBal()
+    //                 }
+    //             }
+    //         } catch (error) {
+    //             alert('remove liquidity cause crash by system')
+    //         }
+    //     } else alert('get PoolPair contract failed')
+    // }
+    // const swap = async (leftEqualRDX, leftSwapValue) => {
+    //     const rdxContract = await getContract('rdx')
+    //     const wjkContract = await getContract('wjk')
+    //     const pooContract = await getContract('poo')
+    //     if (pooContract != null && rdxContract != null && wjkContract != null) {
+    //         try {
+    //             if (leftEqualRDX) {
+    //                 let rdxAllowance = await getRDXAllowance()
+    //                 if (leftSwapValue <= 0) return alert('please submit an valid amount to swap')
+    //                 if (rdxAllowance && rdxAllowance - leftSwapValue >= 0) {
+    //                     const swapTX = await pooContract.swap(RDXToken.contractAddress,
+    //                         parseUnits(`${leftSwapValue}`, 12),
+    //                         parseUnits('0', 12))
+    //                     await swapTX.wait()
+    //                     alert('swap success')
+    //                     await updateTokenBal()
+    //                 } else {
+    //                     let tx = await rdxContract.approve(PoolPair.contractAddress, parseUnits(`${leftSwapValue}`, 12))
+    //                     await tx.wait()
+    //                     const swapTX = await pooContract.swap(RDXToken.contractAddress,
+    //                         parseUnits(`${leftSwapValue}`, 12),
+    //                         parseUnits('0', 12))
+    //                     await swapTX.wait()
+    //                     alert('swap success')
+    //                     await updateTokenBal()
+    //                 }
+    //             } else {
+    //                 let wjkAllowance = await getWJKAllowance()
+    //                 if (leftSwapValue <= 0) return alert('please submit an valid amount to swap')
+    //                 if (wjkAllowance && wjkAllowance - leftSwapValue >= 0) {
+    //                     const swapTX = await pooContract.swap(WJKToken.contractAddress,
+    //                         parseUnits(`${leftSwapValue}`, 12),
+    //                         parseUnits('0', 12))
+    //                     alert('swap success')
+    //                     await swapTX.wait()
+    //                     await updateTokenBal()
+    //                 } else {
+    //                     let tx = await wjkContract.approve(PoolPair.contractAddress, parseUnits(`${leftSwapValue}`, 12))
+    //                     await tx.wait()
+    //                     const swapTX = await pooContract.swap(WJKToken.contractAddress,
+    //                         parseUnits(`${leftSwapValue}`, 12),
+    //                         parseUnits('0', 12))
+    //                     await swapTX.wait()
+    //                     alert('swap success')
+    //                     await updateTokenBal()
+    //                 }
+    //             }
+    //         } catch (error) {
+    //             alert('swap cause crash by system')
+    //         }
+    //     } else alert('get poolpair contract failed')
+
+    // }
+
+
+    // master chef
     const poolNames = ['uni', 'rdlp']
 
     const [uniDepositBalance, setUniBalance] = useState(0)
@@ -506,22 +387,22 @@ export const MainProvider = ({ children }) => {
         }
     }, [userAccount])
 
-
     return (
         <MainContext.Provider
             value={{
                 userAccount,
-                rdxBal, uniBal, wjkBal, rdxrwBal, rdlpBal,
-                mintRDX, mintWJK, mintUni,
-                reserveRdx, reserveWjk,
-                formDataAddLQ, handleChangeAddLQ, formDataRemoveLQ, handleChangeRemoveLQ,
-                addLiquidity, removeLiquidity, swap,
-                approveRDX, approveWJK, approveRDLP, approveRDLPForFarm,approveUNI,
+                coinBals,
+                mintCoin,
+                addLiquidity,
+                approveCoin,
+                showApproveModal, setShowApproveModal, coinAApprove, coinBApprove, setCoinAAprove, setCoinBApprove,
+                addLiquidityTokenA, setAddLiquidityTokenA, addLiquidityTokenB, setAddLiquidityTokenB, addLiquidityShowModal, setAddLiquidityShowModal,
+                swapTokenA, setSwapTokenA, swapTokenB, setSwapTokenB, swapShowModal, setSwapModal,
 
-                uniDepositBalance, rdlpDepositBalance, uniRdxPending, rdlpRdxPending,
-                setUniDepositAmount, setRdlpDepositAmount, depositToken,
-                setUniWithdrawAmount, setRdlpWithdrawAmount, withdrawToken,
-                setClaimeRewardFromUniAmount, setClaimeRewardFromRdplAmount, claimReward
+                uniDepositBalance, uniRdxPending,
+                setUniDepositAmount, depositToken,
+                setUniWithdrawAmount, withdrawToken,
+                setClaimeRewardFromUniAmount, claimReward
             }}
         >
             {children}
