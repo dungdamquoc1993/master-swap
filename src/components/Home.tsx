@@ -17,7 +17,7 @@ const Home = () => {
 
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
                 <h1 style={{ color: 'blue', marginRight: 25 }} >Mint 1000 A </h1>
-                <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => mintCoin('coina')} >
+                <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => mintCoin('a')} >
                     <p>mint</p>
                 </button>
             </div>
@@ -25,7 +25,7 @@ const Home = () => {
 
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
                 <h1 style={{ color: 'blue', marginRight: 25 }} >Mint 1000 B </h1>
-                <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => mintCoin('coinb')} >
+                <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => mintCoin('b')} >
                     <p>mint</p>
                 </button>
             </div>
@@ -33,7 +33,7 @@ const Home = () => {
 
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
                 <h1 style={{ color: 'blue', marginRight: 25 }} >Mint 1000 C </h1>
-                <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => mintCoin('coinc')} >
+                <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => mintCoin('c')} >
                     <p>mint</p>
                 </button>
             </div>
@@ -41,7 +41,7 @@ const Home = () => {
 
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
                 <h1 style={{ color: 'blue', marginRight: 25 }} >Mint 1000 D </h1>
-                <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => mintCoin('coind')} >
+                <button style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', height: 25, width: 60 }} type="button" onClick={() => mintCoin('d')} >
                     <p>mint </p>
                 </button>
             </div>

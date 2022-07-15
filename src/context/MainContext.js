@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useWeb3React } from '@web3-react/core';
 import { getContract, getPairContract } from "../utils/getContract";
-import { MasterChef, WJKToken, RDXToken, PoolPair, UniRouter, CoinB, CoinA, CoinC, CoinD, UNIToken } from '../utils/constant'
+import { MasterChef, UniRouter, CoinB, CoinA, CoinC, CoinD, UNIToken } from '../utils/constant'
 import { parseUnits } from "ethers/lib/utils";
 
 export const MainContext = React.createContext()
@@ -84,26 +84,56 @@ export const MainProvider = ({ children }) => {
             return false
         }
     }
-    const reserveSwap = useState({ tokenA: 0, tokenB: 0 })
-    const reserveAdd = useState({ tokenA: 0, tokenB: 0 })
-    const reserveRemove = useState({ tokenA: 0, tokenB: 0 })
+    const [reserveSwap, setReserveSwap] = useState({ reserveA: 0, reserveB: 0 })
+    const [reserveAdd, setReserveAdd] = useState({ reserveA: 0, reserveB: 0 })
+    const [reserveRemove, setReserveRemove] = useState({ reserveA: 0, reserveB: 0 })
 
-    const getReserveInPair = async (page, pairName) => {
+    const getReserveInPair = async (page, pairName, tokenA, tokenB) => {
         const pairContract = await getPairContract(pairName)
+        if (!pairContract || pairContract?.address == 0) {
+            if (page === 'swap') {
+                setReserveSwap((prevState) => ({ ...prevState, reserveA: 0 }))
+                setReserveSwap((prevState) => ({ ...prevState, reserveB: 0 }))
+            } else if (page === 'add') {
+                setReserveAdd((prevState) => ({ ...prevState, reserveA: 0 }))
+                setReserveAdd((prevState) => ({ ...prevState, reserveB: 0 }))
+            } else if (page === 'remove') {
+                setReserveRemove((prevState) => ({ ...prevState, reserveA: 0 }))
+                setReserveRemove((prevState) => ({ ...prevState, reserveB: 0 }))
+            }
+            return
+        }
         if (pairContract != null) {
             try {
-                const reserve0 = parseInt((await pairContract.getReserves())[0]) / 10 ** 12
-                const reserve1 = parseInt((await pairContract.getReerves())[1]) / 10 ** 12
-                // const [token1, token2] = tokenA < tokenB ? [tokenA, tokenB] : [tokenB, tokenA];
+                let reserve0 = parseInt((await pairContract.getReserves())[0]) / 10 ** 12
+                let reserve1 = parseInt((await pairContract.getReserves())[1]) / 10 ** 12
                 if (page === 'swap') {
-
+                    if (tokenA < tokenB) {
+                        setReserveSwap((prevState) => ({ ...prevState, reserveA: reserve0 }))
+                        setReserveSwap((prevState) => ({ ...prevState, reserveB: reserve1 }))
+                    } else {
+                        setReserveSwap((prevState) => ({ ...prevState, reserveA: reserve1 }))
+                        setReserveSwap((prevState) => ({ ...prevState, reserveB: reserve0 }))
+                    }
                 } else if (page === 'add') {
-
+                    if (tokenA < tokenB) {
+                        setReserveAdd((prevState) => ({ ...prevState, reserveA: reserve0 }))
+                        setReserveAdd((prevState) => ({ ...prevState, reserveB: reserve1 }))
+                    } else {
+                        setReserveAdd((prevState) => ({ ...prevState, reserveA: reserve1 }))
+                        setReserveAdd((prevState) => ({ ...prevState, reserveB: reserve0 }))
+                    }
                 } else if (page === 'remove') {
-
+                    if (tokenA < tokenB) {
+                        setReserveRemove((prevState) => ({ ...prevState, reserveA: reserve0 }))
+                        setReserveRemove((prevState) => ({ ...prevState, reserveB: reserve1 }))
+                    } else {
+                        setReserveRemove((prevState) => ({ ...prevState, reserveA: reserve1 }))
+                        setReserveRemove((prevState) => ({ ...prevState, reserveB: reserve0 }))
+                    }
                 }
             } catch (error) {
-
+                alert('get reserve cause crash by system')
             }
         } else {
             alert('get pair contract cause crash pair might be not initialize yet')
@@ -112,11 +142,11 @@ export const MainProvider = ({ children }) => {
 
     const [addLiquidityTokenA, setAddLiquidityTokenA] = useState('')
     const [addLiquidityTokenB, setAddLiquidityTokenB] = useState('')
-    const [addLiquidityShowModal, setAddLiquidityShowModal] = useState('')
+    const [addLiquidityShowModal, setAddLiquidityShowModal] = useState(false)
     const [showApproveModal, setShowApproveModal] = useState(false)
     const [coinAApprove, setCoinAAprove] = useState('')
     const [coinBApprove, setCoinBApprove] = useState('')
-    const addLiquidity = async (coinAName, coinBName, amountADesired, amountBDesired) => {
+    const addLiquidity = async (pairName, coinAName, coinBName, amountADesired, amountBDesired) => {
         const deadline = new Date().getTime() + 60 * 60 * 24 * 1000
         const routerContract = await getContract('urou')
         const facContract = await getContract('ufac')
@@ -128,7 +158,6 @@ export const MainProvider = ({ children }) => {
         const tokenBAddress = coinBName === 'a' ? CoinA.contractAddress : coinBName === 'b' ? CoinB.contractAddress :
             coinBName === 'c' ? CoinC.contractAddress : coinBName === 'd' ? CoinD.contractAddress : coinBName === 'uni' ?
                 UNIToken.contractAddress : null
-
         if (routerContract != null && facContract != null &&
             coinAContract != null && coinBContract != null && tokenAAddress != null && tokenBAddress != null) {
             try {
@@ -136,20 +165,24 @@ export const MainProvider = ({ children }) => {
                 let coinBAllowance = await getCoinAllowance(coinBName, UniRouter.contractAddress)
                 coinAAllowance = typeof (coinAAllowance) === 'number' ? coinAAllowance : 0
                 coinBAllowance = typeof (coinBAllowance) === 'number' ? coinBAllowance : 0
-                if (coinAAllowance - amountADesired >= 0 && coinBAllowance - amountBDesired >= 0) {
+                if (coinAAllowance - parseInt(amountADesired.toString()) / 10 ** 12 >= 0 &&
+                    coinBAllowance - parseInt(amountBDesired.toString()) / 10 ** 12 >= 0) {
                     const tx = await routerContract.addLiquidity(
-                        tokenAAddress, tokenBAddress,
-                        parseUnits(`${amountADesired}`, 12), parseUnits(`${amountBDesired}`, 12),
+                        tokenAAddress < tokenBAddress ? tokenAAddress : tokenBAddress,
+                        tokenAAddress < tokenBAddress ? tokenBAddress : tokenAAddress,
+                        tokenAAddress < tokenBAddress ? amountADesired : amountBDesired,
+                        tokenAAddress < tokenBAddress ? amountBDesired : amountADesired,
                         0, 0, userAccount, deadline)
                     await tx.wait()
                     alert('add liquidity success')
                     await updateTokenBal()
+                    await getReserveInPair('add', pairName, tokenAAddress, tokenBAddress)
                 } else {
                     setShowApproveModal(true)
-                    if (coinAAllowance - amountADesired < 0) {
+                    if (coinAAllowance - parseInt(amountADesired.toString()) / 10 ** 12 < 0) {
                         setCoinAAprove(coinAName)
                     }
-                    if (coinBAllowance - amountBDesired < 0) {
+                    if (coinBAllowance - parseInt(amountBDesired.toString()) / 10 ** 12 < 0) {
                         setCoinBApprove(coinBName)
                     }
                 }
@@ -160,12 +193,12 @@ export const MainProvider = ({ children }) => {
         } else alert('get PoolPair contract failed')
     }
 
-    const [swapTokenA, setSwapTokenA] = useState('')
-    const [swapTokenB, setSwapTokenB] = useState('')
-    const [swapShowModal, setSwapModal] = useState('')
-
-
-    // const removeLiquidity = async (lpToBurn, rdxMinBack, wjkMinBack) => {
+    const [poolName, setPoolName] = useState('')
+    const [showPickPoolModal, setShowPickPoolModal] = useState(false)
+    // const [removeTokenA, setRemoveTokenA] = useState('')
+    // const [removeTokenB, setRemoveTokenB] = useState('')
+    
+    // const removeLiquidity = async (lpToBurn) => {
     //     const contract = await getContract('poo')
     //     if (contract != null) {
     //         try {
@@ -198,6 +231,10 @@ export const MainProvider = ({ children }) => {
     //         }
     //     } else alert('get PoolPair contract failed')
     // }
+
+    const [swapTokenA, setSwapTokenA] = useState('')
+    const [swapTokenB, setSwapTokenB] = useState('')
+    const [swapShowModal, setSwapModal] = useState('')
     // const swap = async (leftEqualRDX, leftSwapValue) => {
     //     const rdxContract = await getContract('rdx')
     //     const wjkContract = await getContract('wjk')
@@ -254,10 +291,10 @@ export const MainProvider = ({ children }) => {
 
 
     // master chef
+
     const poolNames = ['uni', 'rdlp']
 
     const [uniDepositBalance, setUniBalance] = useState(0)
-    const [rdlpDepositBalance, setRdlpBalance] = useState(0)
     const getTokenDepositBalance = async () => {
         const contract = await getContract('msc')
         if (contract != null) {
@@ -266,8 +303,6 @@ export const MainProvider = ({ children }) => {
                     const balance = await contract.getUserAmountDeposit(name)
                     if (name === 'uni') {
                         setUniBalance(parseInt(balance.toString()) / 10 ** 12)
-                    } else if (name === 'rdlp') {
-                        setRdlpBalance(parseInt(balance.toString()) / 10 ** 12)
                     }
                 } catch (error) {
                     alert('get token deposit balance cause crash from system')
@@ -276,7 +311,6 @@ export const MainProvider = ({ children }) => {
         } else alert('get MSC contract failed in getUniDepositBal')
     }
     const [uniRdxPending, setUniRdxPending] = useState(0)
-    const [rdlpRdxPending, setRdlpRDdxPending] = useState(0)
     const getRDXPending = async () => {
         const contract = await getContract('msc')
         if (contract != null) {
@@ -285,9 +319,6 @@ export const MainProvider = ({ children }) => {
                     if (name === 'uni') {
                         const RDXPending = await contract.pendingRedDot(name, userAccount)
                         setUniRdxPending(Math.round(parseInt(RDXPending.toString()) / 10 ** 12))
-                    } else if (name === 'rdlp') {
-                        const RDXPending = await contract.pendingRedDot(name, userAccount)
-                        setRdlpRDdxPending(Math.round(parseInt(RDXPending.toString()) / 10 ** 12))
                     }
                 })
             } catch (error) {
@@ -387,6 +418,105 @@ export const MainProvider = ({ children }) => {
             updateTokenBal()
         }
     }, [userAccount])
+    // get reserve in page add liquidity    
+    useEffect(() => {
+        if (!addLiquidityTokenA || !addLiquidityTokenB) return
+        const tokenA = addLiquidityTokenA === 'CoinA' ? CoinA.contractAddress : addLiquidityTokenA === 'CoinB' ?
+            CoinB.contractAddress : addLiquidityTokenA === 'CoinC' ? CoinC.contractAddress :
+                addLiquidityTokenA === 'CoinD' ? CoinD.contractAddress : ''
+        const tokenB = addLiquidityTokenB === 'CoinA' ? CoinA.contractAddress : addLiquidityTokenB === 'CoinB' ?
+            CoinB.contractAddress : addLiquidityTokenB === 'CoinC' ? CoinC.contractAddress :
+                addLiquidityTokenB === 'CoinD' ? CoinD.contractAddress : ''
+        const pairName =
+            addLiquidityTokenA === 'CoinA' && addLiquidityTokenB === 'CoinB' ? 'ab' :
+                addLiquidityTokenA === 'CoinA' && addLiquidityTokenB === 'CoinC' ? 'ac' :
+                    addLiquidityTokenA === 'CoinA' && addLiquidityTokenB === 'CoinD' ? 'ad' :
+                        addLiquidityTokenA === 'CoinB' && addLiquidityTokenB === 'CoinA' ? 'ab' :
+                            addLiquidityTokenA === 'CoinB' && addLiquidityTokenB === 'CoinC' ? 'bc' :
+                                addLiquidityTokenA === 'CoinB' && addLiquidityTokenB === 'CoinD' ? 'bd' :
+                                    addLiquidityTokenA === 'CoinC' && addLiquidityTokenB === 'CoinA' ? 'ac' :
+                                        addLiquidityTokenA === 'CoinC' && addLiquidityTokenB === 'CoinB' ? 'bc' :
+                                            addLiquidityTokenA === 'CoinC' && addLiquidityTokenB === 'CoinD' ? 'cd' :
+                                                addLiquidityTokenA === 'CoinD' && addLiquidityTokenB === 'CoinA' ? 'ad' :
+                                                    addLiquidityTokenA === 'CoinD' && addLiquidityTokenB === 'CoinB' ? 'bd' :
+                                                        addLiquidityTokenA === 'CoinD' && addLiquidityTokenB === 'CoinC' ? 'cd' : ''
+        getReserveInPair('add', pairName, tokenA, tokenB)
+    }, [addLiquidityTokenA, addLiquidityTokenB])
+    // get reserve in page swap liquidity    
+    useEffect(() => {
+        if (!swapTokenA || !swapTokenB) return
+        const tokenA = swapTokenA === 'CoinA' ? CoinA.contractAddress : swapTokenA === 'CoinB' ?
+            CoinB.contractAddress : swapTokenA === 'CoinC' ? CoinC.contractAddress :
+                swapTokenA === 'CoinD' ? CoinD.contractAddress : ''
+        const tokenB = swapTokenB === 'CoinA' ? CoinA.contractAddress : swapTokenB === 'CoinB' ?
+            CoinB.contractAddress : swapTokenB === 'CoinC' ? CoinC.contractAddress :
+                swapTokenB === 'CoinD' ? CoinD.contractAddress : ''
+        const pairName =
+            swapTokenA === 'CoinA' && swapTokenB === 'CoinB' ? 'ab' :
+                swapTokenA === 'CoinA' && swapTokenB === 'CoinC' ? 'ac' :
+                    swapTokenA === 'CoinA' && swapTokenB === 'CoinD' ? 'ad' :
+                        swapTokenA === 'CoinB' && swapTokenB === 'CoinA' ? 'ab' :
+                            swapTokenA === 'CoinB' && swapTokenB === 'CoinC' ? 'bc' :
+                                swapTokenA === 'CoinB' && swapTokenB === 'CoinD' ? 'bd' :
+                                    swapTokenA === 'CoinC' && swapTokenB === 'CoinA' ? 'ac' :
+                                        swapTokenA === 'CoinC' && swapTokenB === 'CoinB' ? 'bc' :
+                                            swapTokenA === 'CoinC' && swapTokenB === 'CoinD' ? 'cd' :
+                                                swapTokenA === 'CoinD' && swapTokenB === 'CoinA' ? 'ad' :
+                                                    swapTokenA === 'CoinD' && swapTokenB === 'CoinB' ? 'bd' :
+                                                        swapTokenA === 'CoinD' && swapTokenB === 'CoinC' ? 'cd' : ''
+        getReserveInPair('swap', pairName, tokenA, tokenB)
+    }, [swapTokenA, swapTokenB])
+
+    useEffect(() => {
+        if (poolName === 'ab') {
+            const pairName = 'ab'
+            const [tokenA, tokenB] = CoinA.contractAddress < CoinB.contractAddress ? [CoinA.contractAddress, CoinB.contractAddress] :
+                [CoinB.contractAddress, CoinA.contractAddress]
+            // setRemoveTokenA('Coin A')
+            // setRemoveTokenB('Coin B')
+            getReserveInPair('remove', pairName, tokenA, tokenB)
+
+        } else if (poolName === 'ac') {
+            // setRemoveTokenA('Coin A')
+            // setRemoveTokenB('Coin C')
+            const pairName = 'ac'
+            const [tokenA, tokenB] = CoinA.contractAddress < CoinC.contractAddress ? [CoinA.contractAddress, CoinC.contractAddress] :
+                [CoinC.contractAddress, CoinA.contractAddress]
+            getReserveInPair('remove', pairName, tokenA, tokenB)
+
+        } else if (poolName === 'ad') {
+            // setRemoveTokenA('Coin A')
+            // setRemoveTokenB('Coin D')
+            const pairName = 'ad'
+            const [tokenA, tokenB] = CoinA.contractAddress < CoinD.contractAddress ? [CoinA.contractAddress, CoinD.contractAddress] :
+                [CoinD.contractAddress, CoinA.contractAddress]
+            getReserveInPair('remove', pairName, tokenA, tokenB)
+
+        } else if (poolName === 'bc') {
+            // setRemoveTokenA('Coin B')
+            // setRemoveTokenB('Coin C')
+            const pairName = 'bc'
+            const [tokenA, tokenB] = CoinB.contractAddress < CoinC.contractAddress ? [CoinB.contractAddress, CoinC.contractAddress] :
+                [CoinC.contractAddress, CoinB.contractAddress]
+            getReserveInPair('remove', pairName, tokenA, tokenB)
+
+        } else if (poolName === 'bd') {
+            // setRemoveTokenA('Coin B')
+            // setRemoveTokenB('Coin D')
+            const pairName = 'bd'
+            const [tokenA, tokenB] = CoinB.contractAddress < CoinD.contractAddress ? [CoinB.contractAddress, CoinD.contractAddress] :
+                [CoinD.contractAddress, CoinB.contractAddress]
+            getReserveInPair('remove', pairName, tokenA, tokenB)
+
+        } else if (poolName === 'cd') {
+            // setRemoveTokenA('Coin C')
+            // setRemoveTokenB('Coin D')
+            const pairName = 'cd'
+            const [tokenA, tokenB] = CoinC.contractAddress < CoinD.contractAddress ? [CoinC.contractAddress, CoinD.contractAddress] :
+                [CoinD.contractAddress, CoinC.contractAddress]
+            getReserveInPair('remove', pairName, tokenA, tokenB)
+        }
+    }, [poolName])
 
     return (
         <MainContext.Provider
@@ -398,7 +528,12 @@ export const MainProvider = ({ children }) => {
                 approveCoin,
                 showApproveModal, setShowApproveModal, coinAApprove, coinBApprove, setCoinAAprove, setCoinBApprove,
                 addLiquidityTokenA, setAddLiquidityTokenA, addLiquidityTokenB, setAddLiquidityTokenB, addLiquidityShowModal, setAddLiquidityShowModal,
+                reserveAdd,
                 swapTokenA, setSwapTokenA, swapTokenB, setSwapTokenB, swapShowModal, setSwapModal,
+                reserveSwap,
+
+                showPickPoolModal, setShowPickPoolModal, poolName, setPoolName, 
+                // removeTokenA, removeTokenB, reserveRemove,
 
                 uniDepositBalance, uniRdxPending,
                 setUniDepositAmount, depositToken,
